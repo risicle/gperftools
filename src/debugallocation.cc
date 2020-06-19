@@ -97,6 +97,8 @@
 # define MAP_ANONYMOUS MAP_ANON
 #endif
 
+#define unlikely(x) __builtin_expect(x, 0)
+
 // ========================================================================= //
 
 DEFINE_bool(malloctrace,
@@ -438,18 +440,18 @@ class MallocBlock {
     } else {
       map_type = *found_type;
     }
-    if ((map_type & kDeallocatedTypeBit) != 0) {
+    if (unlikely((map_type & kDeallocatedTypeBit) != 0)) {
       RAW_LOG(FATAL, "memory allocation bug: object at %p "
                      "has been already deallocated (it was allocated with %s)",
                      data_addr(), AllocName(map_type & ~kDeallocatedTypeBit));
     }
-    if (alloc_type_ == kMagicDeletedSizeT) {
+    if (unlikely(alloc_type_ == kMagicDeletedSizeT)) {
       RAW_LOG(FATAL, "memory stomping bug: a word before object at %p "
                      "has been corrupted; or else the object has been already "
                      "deallocated and our memory map has been corrupted",
                      data_addr());
     }
-    if (!IsValidMagicValue(magic1_)) {
+    if (unlikely(!IsValidMagicValue(magic1_))) {
       RAW_LOG(FATAL, "memory stomping bug: a word before object at %p "
                      "has been corrupted; "
                      "or else our memory map has been corrupted and this is a "
@@ -468,7 +470,7 @@ class MallocBlock {
                 "has been corrupted", data_addr());
       }
     }
-    if (alloc_type_ != type) {
+    if (unlikely(alloc_type_ != type)) {
       if ((alloc_type_ != MallocBlock::kMallocType) &&
           (alloc_type_ != MallocBlock::kNewType)    &&
           (alloc_type_ != MallocBlock::kArrayNewType)) {
@@ -479,7 +481,7 @@ class MallocBlock {
                      "allocated with %s being deallocated with %s",
                      data_addr(), AllocName(alloc_type_), DeallocName(type));
     }
-    if (alloc_type_ != map_type) {
+    if (unlikely(alloc_type_ != map_type)) {
       RAW_LOG(FATAL, "memory stomping bug: our memory map has been corrupted : "
                      "allocation at %p made with %s "
                      "is recorded in the map to be made with %s",
@@ -523,7 +525,7 @@ class MallocBlock {
       int num_pages = (sz + pagesize - 1) / pagesize + 1;
       char* p = (char*) mmap(NULL, num_pages * pagesize, PROT_READ|PROT_WRITE,
                              MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-      if (p == MAP_FAILED) {
+      if (unlikely(p == MAP_FAILED)) {
         // If the allocation fails, abort rather than returning NULL to
         // malloc. This is because in most cases, the program will run out
         // of memory in this mode due to tremendous amount of wastage. There
@@ -532,8 +534,8 @@ class MallocBlock {
                 strerror(errno));
       }
       // Mark the page after the block inaccessible
-      if (mprotect(p + (num_pages - 1) * pagesize, pagesize,
-                   PROT_NONE|(malloc_page_fence_readable ? PROT_READ : 0))) {
+      if (unlikely(mprotect(p + (num_pages - 1) * pagesize, pagesize,
+                   PROT_NONE|(malloc_page_fence_readable ? PROT_READ : 0)))) {
         RAW_LOG(FATAL, "Guard page setup failed: %s", strerror(errno));
       }
       b = (MallocBlock*) (p + (num_pages - 1) * pagesize - sz);

@@ -83,7 +83,7 @@ DECLARE_int32(verbose);
 // call malloc().
 #define CHECK(condition)                                                \
   do {                                                                  \
-    if (!(condition)) {                                                 \
+    if (__builtin_expect(!(condition), 0)) {                            \
       WRITE_TO_STDERR("Check failed: " #condition "\n",                 \
                       sizeof("Check failed: " #condition "\n")-1);      \
       abort();                                                          \
@@ -93,7 +93,7 @@ DECLARE_int32(verbose);
 // This takes a message to print.  The name is historical.
 #define RAW_CHECK(condition, message)                                          \
   do {                                                                         \
-    if (!(condition)) {                                                        \
+    if (__builtin_expect(!(condition), 0)) {                                   \
       WRITE_TO_STDERR("Check failed: " #condition ": " message "\n",           \
                       sizeof("Check failed: " #condition ": " message "\n")-1);\
       abort();                                                                 \
